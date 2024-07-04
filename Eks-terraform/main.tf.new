@@ -1,3 +1,4 @@
+# Define an IAM policy document for the EKS cluster role
 data "aws_iam_policy_document" "assume_role" {
   statement {
     effect = "Allow"
@@ -11,41 +12,38 @@ data "aws_iam_policy_document" "assume_role" {
   }
 }
 
+# Create an IAM role for the EKS cluster with the defined policy
 resource "aws_iam_role" "example" {
   name               = "eks-cluster-cloud"
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
+# Attach the AmazonEKSClusterPolicy managed policy to the IAM role
 resource "aws_iam_role_policy_attachment" "example-AmazonEKSClusterPolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
   role       = aws_iam_role.example.name
 }
 
-# Specify a variable for the VPC
+# Specify a variable for the VPC ID where the EKS cluster will be created
 variable "vpc_id" {
   description = "The ID of the VPC where the EKS cluster will be created"
   type        = string
 }
 
-# Reference the VPC id
+# Reference the specified VPC using the provided VPC ID
 data "aws_vpc" "selected" {
   id = var.vpc_id
 }
 
-# Filter for public subnets based on a tag
+# Get the public subnets within the specified VPC
 data "aws_subnets" "public" {
   filter {
     name   = "vpc-id"
     values = [data.aws_vpc.selected.id]
   }
-
-  filter {
-    name   = "tag:Name"
-    values = ["*public*"]  # Assumes public subnets are tagged with 'public' in their Name tag
-  }
 }
 
-# Cluster provision
+# Provision the EKS cluster
 resource "aws_eks_cluster" "example" {
   name     = "EKS_CLOUD"
   role_arn = aws_iam_role.example.arn
@@ -54,11 +52,13 @@ resource "aws_eks_cluster" "example" {
     subnet_ids = data.aws_subnets.public.ids
   }
 
+  # Ensure IAM Role permissions are created before and deleted after EKS Cluster handling
   depends_on = [
     aws_iam_role_policy_attachment.example-AmazonEKSClusterPolicy,
   ]
 }
 
+# Create an IAM role for the EKS worker nodes
 resource "aws_iam_role" "example1" {
   name = "eks-node-group-cloud"
 
@@ -74,22 +74,25 @@ resource "aws_iam_role" "example1" {
   })
 }
 
+# Attach the AmazonEKSWorkerNodePolicy managed policy to the IAM role for worker nodes
 resource "aws_iam_role_policy_attachment" "example-AmazonEKSWorkerNodePolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
   role       = aws_iam_role.example1.name
 }
 
+# Attach the AmazonEKS_CNI_Policy managed policy to the IAM role for worker nodes
 resource "aws_iam_role_policy_attachment" "example-AmazonEKS_CNI_Policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
   role       = aws_iam_role.example1.name
 }
 
+# Attach the AmazonEC2ContainerRegistryReadOnly managed policy to the IAM role for worker nodes
 resource "aws_iam_role_policy_attachment" "example-AmazonEC2ContainerRegistryReadOnly" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
   role       = aws_iam_role.example1.name
 }
 
-# Create node group
+# Create the EKS node group
 resource "aws_eks_node_group" "example" {
   cluster_name    = aws_eks_cluster.example.name
   node_group_name = "Node-cloud"
@@ -103,6 +106,7 @@ resource "aws_eks_node_group" "example" {
   }
   instance_types = ["t2.medium"]
 
+  # Ensure IAM Role permissions are created before and deleted after EKS Node Group handling
   depends_on = [
     aws_iam_role_policy_attachment.example-AmazonEKSWorkerNodePolicy,
     aws_iam_role_policy_attachment.example-AmazonEKS_CNI_Policy,
