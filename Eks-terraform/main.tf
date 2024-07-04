@@ -21,17 +21,24 @@ resource "aws_iam_role_policy_attachment" "example-AmazonEKSClusterPolicy" {
   role       = aws_iam_role.example.name
 }
 
-#get vpc data
-data "aws_vpc" "default" {
-  default = true
+# Specify a variable for the VPC
+variable "vpc_id" {
+  description = "The ID of the VPC where the EKS cluster will be created"
+  type        = string
 }
-#get public subnets for cluster
+
+# Reference the VPC id
+data "aws_vpc" "selected" {
+  id = var.vpc_id
+}
+
 data "aws_subnets" "public" {
   filter {
     name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
+    values = [data.aws_vpc.selected.id]
   }
 }
+
 #cluster provision
 resource "aws_eks_cluster" "example" {
   name     = "EKS_CLOUD"
