@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: reddit-clone
-        image: writetoritika/reddit:latest
+        image: wikenhub/reddit:latest
         ports:
         - containerPort: 3000
